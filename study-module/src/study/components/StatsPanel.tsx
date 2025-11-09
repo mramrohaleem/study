@@ -12,14 +12,14 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ onNavigate }) => {
   const stats = computeWeekStats(state);
 
   const moodInsights = state.dayMeta
-    .filter((meta) => meta.mood && meta.energy)
+    .filter((meta) => meta.mood !== undefined || meta.energy !== undefined)
     .slice(-7)
     .map((meta) => {
       const studyDay = state.studyDays.find((day) => day.date === meta.date);
       return {
         date: meta.date,
-        mood: meta.mood ?? 0,
-        energy: meta.energy ?? 0,
+        mood: meta.mood,
+        energy: meta.energy,
         minutes: studyDay?.completedMinutes ?? 0,
       };
     });
@@ -27,46 +27,46 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ onNavigate }) => {
   return (
     <div className="stats-panel">
       <button className="link-button" onClick={() => onNavigate({ type: 'dashboard' })}>
-        ← Back to dashboard
+        ← العودة إلى لوحة التحكم
       </button>
       <header className="stats-header">
         <div>
-          <h1>Study insights</h1>
-          <p className="muted">Track momentum, adherence, and motivation signals.</p>
+          <h1>لوحة الإحصاءات</h1>
+          <p className="muted">راقب تقدمك، التزامك بالخطة، وعلاقتك بالمزاج والطاقة.</p>
         </div>
       </header>
 
       <section className="stats-overview">
         <div className="stats-card">
-          <span className="summary-label">Minutes studied (week)</span>
+          <span className="summary-label">الدقائق في هذا الأسبوع</span>
           <h2>{stats.totalMinutes}</h2>
         </div>
         <div className="stats-card">
-          <span className="summary-label">Lectures completed</span>
+          <span className="summary-label">الدروس المنجزة</span>
           <h2>{stats.lecturesCompleted}</h2>
         </div>
         <div className="stats-card">
-          <span className="summary-label">Plan adherence</span>
+          <span className="summary-label">الالتزام بالخطة</span>
           <h2>{stats.adherence}%</h2>
         </div>
         <div className="stats-card">
-          <span className="summary-label">Current streak</span>
-          <h2>{stats.streak} days</h2>
+          <span className="summary-label">سلسلة الإنجاز الحالية</span>
+          <h2>{stats.streak} يوم</h2>
         </div>
       </section>
 
       <section className="stats-breakdown">
         <div className="stats-breakdown__section">
-          <h3>Most studied subject</h3>
+          <h3>أكثر مادة تمت دراستها</h3>
           <p>
             {stats.mostStudiedSubjectId
               ? state.subjects.find((subject) => subject.id === stats.mostStudiedSubjectId)?.name ?? '—'
               : '—'}
           </p>
-          <span className="muted">Based on completed lectures this week</span>
+          <span className="muted">استناداً إلى الدروس المنجزة هذا الأسبوع</span>
         </div>
         <div className="stats-breakdown__section">
-          <h3>Upcoming exams</h3>
+          <h3>الاختبارات القادمة</h3>
           <ul>
             {state.subjects
               .filter((subject) => !subject.archived)
@@ -74,7 +74,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ onNavigate }) => {
               .slice(0, 3)
               .map((subject) => (
                 <li key={subject.id}>
-                  <strong>{subject.name}</strong> — {dayjs(subject.examDate).format('DD MMM')} ({dayjs(subject.examDate).diff(dayjs(), 'day')} days)
+                  <strong>{subject.name}</strong> — {dayjs(subject.examDate).format('DD MMM')} ({dayjs(subject.examDate).diff(dayjs(), 'day')} يوم)
                 </li>
               ))}
           </ul>
@@ -82,17 +82,17 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ onNavigate }) => {
       </section>
 
       <section className="stats-mood">
-        <h3>Mood & energy correlation</h3>
+        <h3>المزاج والطاقة</h3>
         {moodInsights.length === 0 ? (
-          <p className="muted">Add mood and energy logs to see patterns.</p>
+          <p className="muted">سجل مستوى المزاج والطاقة من لوحة اليوم لمشاهدة الأنماط.</p>
         ) : (
           <div className="mood-grid">
             {moodInsights.map((entry) => (
               <div key={entry.date} className="mood-card">
                 <strong>{dayjs(entry.date).format('DD MMM')}</strong>
-                <span>Mood: {entry.mood}/5</span>
-                <span>Energy: {entry.energy}/5</span>
-                <span>Minutes: {entry.minutes}</span>
+                <span>المزاج: {entry.mood ?? '—'}/5</span>
+                <span>الطاقة: {entry.energy ?? '—'}/5</span>
+                <span>الدقائق: {entry.minutes}</span>
               </div>
             ))}
           </div>

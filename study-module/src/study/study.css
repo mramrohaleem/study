@@ -2,13 +2,16 @@
   padding: 32px 40px 120px;
   max-width: 1200px;
   margin: 0 auto;
+  direction: rtl;
+  text-align: right;
 }
 
 .study-dashboard__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .study-dashboard__header h1 {
@@ -21,6 +24,12 @@
 .study-dashboard__subtitle {
   margin: 4px 0 0;
   color: var(--muted);
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .summary-grid {
@@ -43,7 +52,6 @@
 
 .summary-label {
   font-size: 12px;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
 }
@@ -87,6 +95,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
+  align-items: stretch;
 }
 
 .subject-card {
@@ -96,7 +105,7 @@
   padding: 20px;
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(37, 50, 75, 0.08);
-  text-align: left;
+  text-align: right;
   cursor: pointer;
   position: relative;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -105,6 +114,21 @@
 .subject-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 24px 40px -24px rgba(15, 23, 42, 0.25);
+}
+
+.add-subject-card {
+  border: 2px dashed rgba(37, 50, 75, 0.25);
+  border-radius: var(--subject-card-radius);
+  background: rgba(248, 250, 252, 0.8);
+  padding: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.add-subject-card:hover {
+  background: rgba(148, 163, 184, 0.2);
 }
 
 .subject-card__header {
@@ -199,7 +223,7 @@
   padding: 12px;
   background: #ffffff;
   cursor: pointer;
-  text-align: left;
+  text-align: right;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -223,6 +247,29 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.day-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.day-meta label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #334155;
+}
+
+.day-meta input {
+  width: 120px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 50, 75, 0.14);
+  padding: 8px 10px;
+  text-align: center;
 }
 
 .day-details__meta {
@@ -431,7 +478,7 @@
 }
 
 .subject-header {
-  border-left: 6px solid var(--primary);
+  border-right: 6px solid var(--primary);
   background: #ffffff;
   border-radius: 20px;
   padding: 24px;
@@ -459,6 +506,20 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+
+.subject-progress__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.subject-notes {
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 14px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #1f2937;
 }
 
 .progress-large {
@@ -519,6 +580,10 @@
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+.controls-right input {
+  text-align: right;
 }
 
 .controls-right input,
@@ -600,8 +665,8 @@
 }
 
 .focus-panel__subject {
-  border-left: 6px solid var(--primary);
-  padding-left: 16px;
+  border-right: 6px solid var(--primary);
+  padding-right: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -629,6 +694,27 @@
 .focus-timer__controls {
   display: flex;
   gap: 12px;
+}
+
+.focus-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 260px;
+}
+
+.focus-setup label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #1f2440;
+}
+
+.focus-setup select {
+  border-radius: 12px;
+  border: 1px solid rgba(37, 50, 75, 0.16);
+  padding: 10px 12px;
 }
 
 .focus-result {
@@ -777,7 +863,8 @@
 
 .stats-breakdown__section ul {
   margin: 12px 0 0;
-  padding-left: 18px;
+  padding-right: 18px;
+  padding-left: 0;
   color: #334155;
 }
 
@@ -812,15 +899,22 @@
 }
 
 .lecture-header {
-  border-left: 6px solid var(--primary);
+  border-right: 6px solid var(--primary);
   background: #ffffff;
   border-radius: 20px;
   padding: 24px;
   box-shadow: var(--shadow-sm);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.lecture-header__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .lecture-header h1 {
@@ -848,6 +942,119 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.study-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.study-modal__content {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 24px;
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 40px 60px -30px rgba(15, 23, 42, 0.4);
+}
+
+.study-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.study-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.study-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.study-form input,
+.study-form select,
+.study-form textarea {
+  border-radius: 12px;
+  border: 1px solid rgba(37, 50, 75, 0.16);
+  padding: 10px 12px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.study-form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.study-form__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.settings-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-header {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-form {
+  background: rgba(76, 110, 245, 0.08);
+  border-radius: 24px;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.settings-form input {
+  border-radius: 12px;
+  border: 1px solid rgba(37, 50, 75, 0.16);
+  padding: 10px 12px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.settings-form .study-button {
+  grid-column: 1 / -1;
+  justify-self: flex-start;
 }
 
 @media (max-width: 768px) {

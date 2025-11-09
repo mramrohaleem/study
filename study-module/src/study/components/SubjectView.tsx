@@ -4,7 +4,9 @@ import clsx from 'clsx';
 import { SectionView } from '../StudySection';
 import { useStudyActions, useStudyState } from '../state';
 import { getSubjectLectures, getSubjectProgress } from '../utils/selectors';
-import { Lecture, LectureStatus, LectureType } from '../types';
+import { Difficulty, Lecture, LectureStatus, LectureType } from '../types';
+import { SubjectForm } from './SubjectForm';
+import { LectureForm, LectureFormValues } from './LectureForm';
 
 interface SubjectViewProps {
   subjectId: string;
@@ -12,8 +14,11 @@ interface SubjectViewProps {
 }
 
 type LectureFilter = 'all' | 'remaining' | 'needs_revision' | 'done';
-
 type SortOption = 'order' | 'status' | 'type' | 'minutes';
+
+type LectureStatusLabel = Record<LectureStatus, string>;
+
+type LectureTypeLabel = Record<LectureType, string>;
 
 const filterLecture = (lecture: Lecture, filter: LectureFilter) => {
   switch (filter) {
@@ -41,12 +46,25 @@ const sortLectures = (lectures: Lecture[], option: SortOption) => {
   }
 };
 
-const lectureTypeLabel: Record<LectureType, string> = {
-  lecture: 'Lecture',
-  section: 'Section',
-  mcq: 'MCQ',
-  case: 'Case',
-  other: 'Other',
+const lectureTypeLabel: LectureTypeLabel = {
+  lecture: 'محاضرة',
+  section: 'سكشن',
+  mcq: 'أسئلة اختيار من متعدد',
+  case: 'حالة',
+  other: 'أخرى',
+};
+
+const lectureStatusLabel: LectureStatusLabel = {
+  not_started: 'لم تبدأ',
+  in_progress: 'قيد الإنجاز',
+  done: 'منتهية',
+  needs_revision: 'تحتاج مراجعة',
+};
+
+const difficultyLabel: Record<Difficulty, string> = {
+  easy: 'سهل',
+  medium: 'متوسط',
+  hard: 'صعب',
 };
 
 export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate }) => {
@@ -57,6 +75,9 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
   const [search, setSearch] = useState('');
   const [plannerInfo, setPlannerInfo] = useState<string | null>(null);
   const [plannerWarning, setPlannerWarning] = useState<string | null>(null);
+  const [showSubjectForm, setShowSubjectForm] = useState(false);
+  const [lectureToEdit, setLectureToEdit] = useState<Lecture | null>(null);
+  const [showLectureForm, setShowLectureForm] = useState(false);
 
   const subject = state.subjects.find((item) => item.id === subjectId);
   const lectures = useMemo(() => getSubjectLectures(state, subjectId), [state, subjectId]);
@@ -66,9 +87,9 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
     return (
       <div className="subject-view">
         <button className="study-button secondary" onClick={() => onNavigate({ type: 'dashboard' })}>
-          Back to dashboard
+          العودة إلى لوحة التحكم
         </button>
-        <p>Subject not found.</p>
+        <p>لم يتم العثور على المادة.</p>
       </div>
     );
   }
@@ -84,43 +105,90 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
   );
 
   const daysLeft = dayjs(subject.examDate).startOf('day').diff(dayjs().startOf('day'), 'day');
+  const effectiveStudyDays = Math.max(0, daysLeft - subject.reservedRevisionDays);
+  const requiredPerDay = progress.remaining
+    ? progress.remaining / Math.max(1, effectiveStudyDays || 1)
+    : 0;
+  const overloaded =
+    progress.remaining > 0 &&
+    (effectiveStudyDays <= 0 ||
+      requiredPerDay > (state.settings.maxLecturesPerDay ?? Math.max(requiredPerDay, 1)));
 
   const handlePlanner = () => {
     const result = actions.generatePlanForSubject(subjectId);
     if (!result) return;
+    const cutoff = dayjs(subject.examDate).subtract(subject.reservedRevisionDays, 'day');
     setPlannerInfo(
-      `Scheduled ${result.change.newAverage.toFixed(1)} lectures/day until ${dayjs(subject.examDate)
-        .subtract(subject.reservedRevisionDays, 'day')
-        .format('DD MMM')}.`,
+      `تم توزيع الدروس بمتوسط ${result.change.newAverage.toFixed(1)} يومياً حتى ${cutoff.format('DD MMM')}.`,
     );
-    setPlannerWarning(result.warnings[0] ?? (result.change.overloaded ? 'Plan exceeds daily limits. Consider adjusting settings.' : null));
+    if (result.warnings.length) {
+      setPlannerWarning(result.warnings[0]);
+    } else if (result.change.overloaded) {
+      setPlannerWarning('الخطة الحالية تتجاوز الحدود اليومية المسموح بها. راجع الإعدادات أو قلل عدد الدروس.');
+    } else {
+      setPlannerWarning(null);
+    }
   };
 
-  const todayTargets = state.studyDays
-    .find((day) => day.date === dayjs().format('YYYY-MM-DD'))
-    ?.targetLectures.filter((item) => item.subjectId === subjectId).length ?? 0;
+  const todayTargets =
+    state.studyDays
+      .find((day) => day.date === dayjs().format('YYYY-MM-DD'))
+      ?.targetLectures.filter((item) => item.subjectId === subjectId).length ?? 0;
 
-  const requiredPerDay = progress.remaining
-    ? progress.remaining / Math.max(1, daysLeft - subject.reservedRevisionDays)
-    : 0;
-  const overloaded =
-    requiredPerDay > (state.settings.maxLecturesPerDay ?? Number.POSITIVE_INFINITY) ||
-    (subject.reservedRevisionDays >= daysLeft && progress.remaining > 0);
+  const handleAddLecture = (values: LectureFormValues) => {
+    actions.upsertLecture({
+      subjectId,
+      title: values.title,
+      estimatedMinutes: values.estimatedMinutes,
+      type: values.type,
+      priority: values.priority,
+      tags: values.tags,
+      sourceLink: values.sourceLink,
+      order: lectures.length + 1,
+    });
+    setLectureToEdit(null);
+    setShowLectureForm(false);
+  };
+
+  const handleUpdateLecture = (values: LectureFormValues) => {
+    if (!lectureToEdit) return;
+    actions.updateLecture(lectureToEdit.id, {
+      title: values.title,
+      estimatedMinutes: values.estimatedMinutes,
+      type: values.type,
+      priority: values.priority,
+      tags: values.tags,
+      sourceLink: values.sourceLink,
+    });
+    setShowLectureForm(false);
+    setLectureToEdit(null);
+  };
+
+  const openLectureEdit = (lecture: Lecture) => {
+    setLectureToEdit(lecture);
+    setShowLectureForm(true);
+  };
 
   return (
     <div className="subject-view">
       <button className="link-button" onClick={() => onNavigate({ type: 'dashboard' })}>
-        ← Back to dashboard
+        ← العودة إلى لوحة التحكم
       </button>
       <header className="subject-header" style={{ borderColor: subject.color }}>
         <div>
           <h1>{subject.name}</h1>
-          <p className="muted">Exam on {dayjs(subject.examDate).format('DD MMM YYYY')} · {daysLeft} days left</p>
+          <p className="muted">
+            الامتحان في {dayjs(subject.examDate).format('DD MMM YYYY')} · متبقٍ {Math.max(daysLeft, 0)} يوم
+          </p>
+          {subject.notes && <p className="subject-notes">ملاحظات: {subject.notes}</p>}
         </div>
         <div className="subject-header__meta">
-          <span className="badge">Difficulty: {subject.difficulty}</span>
-          <span className="badge">Weight: {subject.weight}</span>
-          <span className="badge">Reserved revision: {subject.reservedRevisionDays} days</span>
+          <span className="badge">الصعوبة: {difficultyLabel[subject.difficulty]}</span>
+          <span className="badge">الوزن: {subject.weight}</span>
+          <span className="badge">أيام المراجعة: {subject.reservedRevisionDays}</span>
+          <button className="study-button secondary" onClick={() => setShowSubjectForm(true)}>
+            تعديل المادة
+          </button>
         </div>
       </header>
 
@@ -137,7 +205,9 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
                 strokeWidth="12"
                 fill="none"
                 strokeDasharray={`${2 * Math.PI * 52}`}
-                strokeDashoffset={`${2 * Math.PI * 52 * (1 - progress.total ? 0 : progress.done / Math.max(progress.total, 1))}`}
+                strokeDashoffset={`${
+                  2 * Math.PI * 52 * (progress.total ? 1 - progress.done / Math.max(progress.total, 1) : 1)
+                }`}
                 strokeLinecap="round"
                 transform="rotate(-90 60 60)"
               />
@@ -145,65 +215,75 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
             <strong>{progress.total ? Math.round((progress.done / progress.total) * 100) : 0}%</strong>
           </div>
           <div>
-            <h3>{progress.done}/{progress.total} lectures complete</h3>
-            <p>{progress.remaining} remaining · {progress.needsRevision} need revision</p>
-            <p>Today’s targets: {todayTargets}</p>
+            <h3>
+              {progress.done}/{progress.total} درس منجز
+            </h3>
+            <p>{progress.remaining} متبقٍ · {progress.needsRevision} يحتاج إلى مراجعة</p>
+            <p>أهداف اليوم: {todayTargets}</p>
           </div>
         </div>
         <div className="subject-progress__meta">
           <div>
-            <span className="muted">Required per study day</span>
-            <h4>{requiredPerDay.toFixed(1)} lectures</h4>
+            <span className="muted">المطلوب لكل يوم دراسة</span>
+            <h4>{requiredPerDay.toFixed(1)} درس</h4>
           </div>
           <div>
-            <span className="muted">Difficulty insight</span>
-            <p>Harder subjects may get more slots when auto-planning.</p>
+            <span className="muted">مؤشر الصعوبة</span>
+            <p>المواد الأصعب تحصل على وزن أكبر عند إعادة التخطيط.</p>
           </div>
-          {overloaded && <span className="badge badge-warning">At risk · adjust plan</span>}
+          {overloaded && <span className="badge badge-warning">الخطة معرضة للخطر</span>}
         </div>
-        <button className="study-button" onClick={handlePlanner}>
-          Generate plan
-        </button>
+        <div className="subject-progress__actions">
+          <button className="study-button" onClick={handlePlanner}>
+            إعادة توزيع الدروس
+          </button>
+          <button className="study-button secondary" onClick={() => onNavigate({ type: 'revisionPlanner', subjectId })}>
+            مخطط المراجعة
+          </button>
+        </div>
         {plannerInfo && <p className="planner-info">{plannerInfo}</p>}
         {plannerWarning && <p className="planner-warning">{plannerWarning}</p>}
       </section>
 
       <section className="subject-controls">
         <div className="filters">
-          {(['all', 'remaining', 'needs_revision', 'done'] as LectureFilter[]).map((value) => (
+          {([
+            ['all', 'الكل'],
+            ['remaining', 'المتبقي'],
+            ['needs_revision', 'يحتاج مراجعة'],
+            ['done', 'منجز'],
+          ] as [LectureFilter, string][]).map(([value, label]) => (
             <button key={value} className={clsx('chip', filter === value && 'chip-active')} onClick={() => setFilter(value)}>
-              {value.replace('_', ' ')}
+              {label}
             </button>
           ))}
         </div>
         <div className="controls-right">
           <input
             type="search"
-            placeholder="Search lectures or tags"
+            placeholder="ابحث باسم الدرس أو الوسوم"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
           <select value={sort} onChange={(event) => setSort(event.target.value as SortOption)}>
-            <option value="order">Order</option>
-            <option value="status">Status</option>
-            <option value="type">Type</option>
-            <option value="minutes">Minutes</option>
+            <option value="order">الترتيب</option>
+            <option value="status">الحالة</option>
+            <option value="type">النوع</option>
+            <option value="minutes">الوقت</option>
           </select>
+          <button className="study-button" onClick={() => { setLectureToEdit(null); setShowLectureForm(true); }}>
+            إضافة درس
+          </button>
         </div>
       </section>
 
       <section className="lecture-list">
         {filteredLectures.length === 0 && (
           <div className="empty-state">
-            <h3>No lectures found</h3>
-            <p>Add lectures to this subject so we can build a plan.</p>
-            <button
-              className="study-button"
-              onClick={() =>
-                actions.upsertLecture({ subjectId, title: `Lecture ${lectures.length + 1}`, estimatedMinutes: 45 })
-              }
-            >
-              Add lecture
+            <h3>لا توجد دروس</h3>
+            <p>أضف دروساً لهذه المادة لنبني خطة مناسبة.</p>
+            <button className="study-button" onClick={() => { setLectureToEdit(null); setShowLectureForm(true); }}>
+              إضافة درس جديد
             </button>
           </div>
         )}
@@ -211,7 +291,9 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
           <article key={lecture.id} className={clsx('lecture-card', `status-${lecture.status}`)}>
             <div>
               <h3>{lecture.title}</h3>
-              <p className="muted">{lectureTypeLabel[lecture.type]} · {lecture.estimatedMinutes} minutes</p>
+              <p className="muted">
+                {lectureTypeLabel[lecture.type]} · {lecture.estimatedMinutes} دقيقة
+              </p>
               {lecture.tags.length > 0 && (
                 <div className="tag-row">
                   {lecture.tags.map((tag) => (
@@ -221,23 +303,90 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
                   ))}
                 </div>
               )}
+              {lecture.sourceLink && (
+                <a className="link-button" href={lecture.sourceLink} target="_blank" rel="noreferrer">
+                  فتح المصدر
+                </a>
+              )}
             </div>
             <div className="lecture-card__actions">
-              <span className={clsx('badge', lecture.status === 'done' && 'badge-success', lecture.status === 'needs_revision' && 'badge-warning')}>
-                {lecture.status.replace('_', ' ')}
+              <span
+                className={clsx(
+                  'badge',
+                  lecture.status === 'done' && 'badge-success',
+                  lecture.status === 'needs_revision' && 'badge-warning',
+                )}
+              >
+                {lectureStatusLabel[lecture.status]}
               </span>
               <div className="lecture-buttons">
                 <button className="study-button secondary" onClick={() => onNavigate({ type: 'lecture', lectureId: lecture.id })}>
-                  View
+                  عرض التفاصيل
+                </button>
+                <button className="study-button secondary" onClick={() => openLectureEdit(lecture)}>
+                  تعديل
                 </button>
                 <button className="study-button" onClick={() => onNavigate({ type: 'focus', lectureId: lecture.id })}>
-                  Focus
+                  تركيز
                 </button>
               </div>
             </div>
           </article>
         ))}
       </section>
+
+      {showSubjectForm && (
+        <SubjectForm
+          title="تعديل المادة"
+          onCancel={() => setShowSubjectForm(false)}
+          submitLabel="تحديث المادة"
+          initial={{
+            name: subject.name,
+            color: subject.color,
+            examDate: subject.examDate,
+            difficulty: subject.difficulty,
+            reservedRevisionDays: subject.reservedRevisionDays,
+            weight: subject.weight,
+            notes: subject.notes,
+          }}
+          onSubmit={(values) => {
+            actions.updateSubject(subjectId, {
+              name: values.name,
+              color: values.color,
+              examDate: values.examDate,
+              difficulty: values.difficulty,
+              reservedRevisionDays: values.reservedRevisionDays,
+              weight: values.weight,
+              notes: values.notes,
+            });
+            setShowSubjectForm(false);
+          }}
+        />
+      )}
+
+      {showLectureForm && (
+        <LectureForm
+          title={lectureToEdit ? 'تعديل الدرس' : 'إضافة درس جديد'}
+          submitLabel={lectureToEdit ? 'حفظ التعديلات' : 'حفظ الدرس'}
+          initial={
+            lectureToEdit
+              ? {
+                  title: lectureToEdit.title,
+                  estimatedMinutes: lectureToEdit.estimatedMinutes,
+                  type: lectureToEdit.type,
+                  priority: lectureToEdit.priority ?? 'normal',
+                  tags: lectureToEdit.tags ?? [],
+                  sourceLink: lectureToEdit.sourceLink,
+                }
+              : undefined
+          }
+          onCancel={() => {
+            setShowLectureForm(false);
+            setLectureToEdit(null);
+          }}
+          onSubmit={lectureToEdit ? handleUpdateLecture : handleAddLecture}
+        />
+      )}
     </div>
   );
 };

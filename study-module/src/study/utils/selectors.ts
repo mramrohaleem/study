@@ -52,13 +52,13 @@ export const nextLectureForToday = (state: StudyState): PlannedLecture | undefin
 export const getLectureStatusLabel = (status: LectureStatus) => {
   switch (status) {
     case 'done':
-      return 'Done';
+      return 'منتهية';
     case 'in_progress':
-      return 'In progress';
+      return 'قيد الإنجاز';
     case 'needs_revision':
-      return 'Needs revision';
+      return 'تحتاج مراجعة';
     default:
-      return 'Not started';
+      return 'لم تبدأ';
   }
 };
 
@@ -123,8 +123,8 @@ export const computeStreak = (state: StudyState) => {
 export const todayLabel = (date: string) => {
   const target = dayjs(date);
   const today = dayjs().startOf('day');
-  if (target.isSame(today)) return 'Today';
-  if (target.isSame(today.add(1, 'day'))) return 'Tomorrow';
-  if (target.isSame(today.subtract(1, 'day'))) return 'Yesterday';
-  return target.format('MMM D, YYYY');
+  if (target.isSame(today)) return 'اليوم';
+  if (target.isSame(today.add(1, 'day'))) return 'غداً';
+  if (target.isSame(today.subtract(1, 'day'))) return 'أمس';
+  return target.format('DD MMM YYYY');
 };

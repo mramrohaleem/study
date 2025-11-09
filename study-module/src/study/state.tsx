@@ -1,7 +1,17 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { nanoid } from 'nanoid';
-import { Lecture, LectureStatus, PlannedLecture, RevisionPass, StudySectionProps, StudyState, Subject, StudySettings } from './types';
+import {
+  DayMeta,
+  Lecture,
+  LectureStatus,
+  PlannedLecture,
+  RevisionPass,
+  StudySectionProps,
+  StudyState,
+  Subject,
+  StudySettings,
+} from './types';
 import { createEmptyState, loadState, saveState } from './storage';
 import { studyEventBus } from './events';
 import { generateSubjectPlan, PlannerResult } from './planner';
@@ -17,6 +27,7 @@ interface StudyActions {
   assignLectureToDay(date: string, planned: PlannedLecture, estimatedMinutes?: number): void;
   logCompletedMinutes(date: string, minutes: number): void;
   setRestDay(date: string, isRestDay: boolean): void;
+  updateDayMeta(date: string, meta: Partial<DayMeta>): void;
   updateSettings(settings: Partial<StudySettings>): void;
   generatePlanForSubject(subjectId: string): PlannerResult | null;
   addRevisionPass(subjectId: string, pass: Omit<RevisionPass, 'id' | 'subjectId'>): string;
@@ -211,6 +222,28 @@ export const StudyProvider: React.FC<StudySectionProps & { children: React.React
           ...prev,
           studyDays: prev.studyDays.map((item) => (item.date === date ? { ...day } : item)),
         };
+      });
+    },
+    updateDayMeta: (date, meta) => {
+      updateState((prev) => {
+        const nextMeta = [...prev.dayMeta];
+        const index = nextMeta.findIndex((item) => item.date === date);
+        const existing = index >= 0 ? nextMeta[index] : undefined;
+        const payload: DayMeta = {
+          date,
+          mood: meta.mood ?? existing?.mood,
+          energy: meta.energy ?? existing?.energy,
+        };
+        if (payload.mood === undefined && payload.energy === undefined) {
+          if (index >= 0) {
+            nextMeta.splice(index, 1);
+          }
+        } else if (index >= 0) {
+          nextMeta[index] = { ...existing, ...payload } as DayMeta;
+        } else {
+          nextMeta.push(payload);
+        }
+        return { ...prev, dayMeta: nextMeta.sort((a, b) => a.date.localeCompare(b.date)) };
       });
     },
     updateSettings: (settings) => {
