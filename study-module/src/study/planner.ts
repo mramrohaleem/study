@@ -61,7 +61,7 @@ export const generateSubjectPlan = (state: StudyState, subjectId: string): Plann
   }
 
   if (!cutoff.isValid() || cutoff.isBefore(today)) {
-    warnings.push('Exam is very close. The planner may overload upcoming days.');
+    warnings.push('الامتحان قريب جداً وقد تحتاج الخطة إلى تحميل أيام إضافية.');
   }
 
   const days: StudyDay[] = [];
@@ -77,7 +77,7 @@ export const generateSubjectPlan = (state: StudyState, subjectId: string): Plann
 
   const activeDays = days.filter((day) => !day.isRestDay);
   if (!activeDays.length) {
-    warnings.push('All days before the exam are marked as rest days. Using them anyway for planning.');
+    warnings.push('كل الأيام قبل الاختبار محددة كراحة، سيتم استخدامها للتخطيط مؤقتاً.');
   }
 
   const planningDays = activeDays.length ? activeDays : days;
@@ -114,10 +114,6 @@ export const generateSubjectPlan = (state: StudyState, subjectId: string): Plann
     }
 
     const assignments = dayAssignments.get(assignedDay.date)!;
-    if (assignments.length >= maxLectures) {
-      overloaded = true;
-    }
-
     const planned: PlannedLecture = {
       subjectId,
       lectureId: lecture.id,
@@ -127,6 +123,9 @@ export const generateSubjectPlan = (state: StudyState, subjectId: string): Plann
     dayAssignments.set(assignedDay.date, assignments);
     const newMinutes = dayMinutes.get(assignedDay.date)! + lecture.estimatedMinutes;
     dayMinutes.set(assignedDay.date, newMinutes);
+    if (assignments.length > maxLectures || newMinutes > maxMinutes) {
+      overloaded = true;
+    }
   });
 
   planningDays.forEach((day) => {
@@ -142,6 +141,9 @@ export const generateSubjectPlan = (state: StudyState, subjectId: string): Plann
         return sum + (targetLecture?.estimatedMinutes ?? 30);
       }, 0);
       day.targetMinutes = minutes;
+      if (assignments.length > maxLectures || minutes > maxMinutes) {
+        overloaded = true;
+      }
     }
     if (day.completedLectures.length) {
       day.completedLectures = day.completedLectures.filter(

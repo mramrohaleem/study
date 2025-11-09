@@ -19,7 +19,7 @@ interface RevisionForm {
 }
 
 const defaultForm: RevisionForm = {
-  name: 'Revision pass',
+  name: 'مراجعة',
   trigger: 'after_finish',
   includeStatuses: ['done', 'needs_revision'],
   includeTags: [],
@@ -30,7 +30,7 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
   const state = useStudyState();
   const actions = useStudyActions();
   const [selectedSubjectId, setSelectedSubjectId] = useState(subjectId ?? state.subjects[0]?.id ?? '');
-  const [form, setForm] = useState<RevisionForm>(defaultForm);
+  const [form, setForm] = useState<RevisionForm>({ ...defaultForm });
   const [message, setMessage] = useState<string | null>(null);
 
   const subject = state.subjects.find((item) => item.id === selectedSubjectId);
@@ -56,13 +56,14 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
       return matchesStatus && matchesTags;
     });
     if (!filtered.length) {
-      setMessage('No lectures match this revision pass criteria yet.');
+      setMessage('لا توجد دروس تنطبق عليها شروط هذه المراجعة بعد.');
       return;
     }
 
-    const startDate = pass.trigger === 'after_finish'
-      ? dayjs().add(1, 'day')
-      : dayjs(subject.examDate).subtract(pass.offsetDaysBeforeExam ?? 3, 'day');
+    const startDate =
+      pass.trigger === 'after_finish'
+        ? dayjs().add(1, 'day')
+        : dayjs(subject.examDate).subtract(pass.offsetDaysBeforeExam ?? 3, 'day');
     const spreadDays = pass.spreadOverDays ?? Math.min(filtered.length, 3);
     let cursor = startDate.startOf('day');
 
@@ -77,7 +78,7 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
       } as const;
       actions.assignLectureToDay(targetDate, planned, Math.max(lecture.estimatedMinutes / 2, 20));
     });
-    setMessage(`Revision tasks scheduled across ${spreadDays} day(s) starting ${startDate.format('DD MMM')}.`);
+    setMessage(`تمت جدولة مراجعات عبر ${spreadDays} يوم/أيام بدءاً من ${startDate.format('DD MMM')}.`);
   };
 
   const handleAddPass = () => {
@@ -90,17 +91,17 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
       includeStatuses: form.includeStatuses,
       spreadOverDays: form.spreadOverDays,
     });
-    setForm(defaultForm);
-    setMessage('Revision pass saved.');
+    setForm({ ...defaultForm });
+    setMessage('تم حفظ إعداد المراجعة.');
   };
 
   if (!subject) {
     return (
       <div className="revision-planner">
         <button className="link-button" onClick={() => onNavigate({ type: 'dashboard' })}>
-          ← Back to dashboard
+          ← العودة إلى لوحة التحكم
         </button>
-        <p>Please add a subject first.</p>
+        <p>يرجى إضافة مادة أولاً.</p>
       </div>
     );
   }
@@ -108,12 +109,12 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
   return (
     <div className="revision-planner">
       <button className="link-button" onClick={() => onNavigate({ type: 'subject', subjectId: selectedSubjectId })}>
-        ← Back to subject
+        ← العودة إلى المادة
       </button>
       <header className="revision-header">
         <div>
-          <h1>Revision planner</h1>
-          <p className="muted">Design revision passes and distribute tasks before the exam.</p>
+          <h1>مخطط المراجعة</h1>
+          <p className="muted">أنشئ دورات مراجعة موزعة قبل الاختبار أو بعد إنهاء الدروس.</p>
         </div>
         <select value={selectedSubjectId} onChange={(event) => setSelectedSubjectId(event.target.value)}>
           {state.subjects.map((item) => (
@@ -125,27 +126,25 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
       </header>
 
       <section className="revision-form">
-        <h3>Create a revision pass</h3>
+        <h3>إضافة جولة مراجعة</h3>
         <div className="revision-grid">
           <label>
-            Name
+            اسم المراجعة
             <input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
           </label>
           <label>
-            Trigger
+            التفعيل
             <select
               value={form.trigger}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, trigger: event.target.value as 'after_finish' | 'before_exam' }))
-              }
+              onChange={(event) => setForm((prev) => ({ ...prev, trigger: event.target.value as 'after_finish' | 'before_exam' }))}
             >
-              <option value="after_finish">After finishing lectures</option>
-              <option value="before_exam">Days before exam</option>
+              <option value="after_finish">بعد إنهاء الدروس</option>
+              <option value="before_exam">أيام قبل الاختبار</option>
             </select>
           </label>
           {form.trigger === 'before_exam' && (
             <label>
-              Days before exam
+              عدد الأيام قبل الاختبار
               <input
                 type="number"
                 min={1}
@@ -155,7 +154,7 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
             </label>
           )}
           <label>
-            Include statuses
+            حالات الدروس المشمولة
             <select
               multiple
               value={form.includeStatuses}
@@ -166,12 +165,12 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
                 }))
               }
             >
-              <option value="done">Done</option>
-              <option value="needs_revision">Needs revision</option>
+              <option value="done">منتهية</option>
+              <option value="needs_revision">تحتاج مراجعة</option>
             </select>
           </label>
           <label>
-            Include tags (comma separated)
+            وسوم مطلوبة (افصل بفواصل)
             <input
               value={form.includeTags.join(', ')}
               onChange={(event) =>
@@ -186,7 +185,7 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
             />
           </label>
           <label>
-            Spread over days
+            عدد الأيام لتوزيع المهام
             <input
               type="number"
               min={1}
@@ -197,14 +196,11 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
         </div>
         <div className="revision-form__actions">
           <button className="study-button" onClick={handleAddPass}>
-            Save pass
+            حفظ الإعداد
           </button>
           {revisionPasses.length > 0 && (
-            <button
-              className="study-button secondary"
-              onClick={() => revisionPasses.forEach((pass) => scheduleRevisionPass(pass))}
-            >
-              Distribute revision tasks
+            <button className="study-button secondary" onClick={() => revisionPasses.forEach((pass) => scheduleRevisionPass(pass))}>
+              توزيع مهام المراجعة
             </button>
           )}
         </div>
@@ -212,30 +208,30 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
       </section>
 
       <section className="revision-pass-list">
-        <h3>Configured passes</h3>
-        {revisionPasses.length === 0 && <p className="muted">No revision passes yet.</p>}
+        <h3>جولات المراجعة المحفوظة</h3>
+        {revisionPasses.length === 0 && <p className="muted">لا توجد جولات مراجعة بعد.</p>}
         <div className="revision-pass-grid">
           {revisionPasses.map((pass) => (
             <article key={pass.id} className="revision-pass-card">
               <h4>{pass.name}</h4>
               <p className="muted">
                 {pass.trigger === 'after_finish'
-                  ? 'After all lectures are complete'
-                  : `${pass.offsetDaysBeforeExam} days before exam`}
+                  ? 'بعد الانتهاء من جميع الدروس'
+                  : `${pass.offsetDaysBeforeExam} يوم قبل الاختبار`}
               </p>
               <p className="muted">
-                Include statuses: {(pass.includeStatuses ?? ['done', 'needs_revision']).join(', ')}
+                الحالات: {(pass.includeStatuses ?? ['done', 'needs_revision']).map((status) => (status === 'done' ? 'منتهية' : 'تحتاج مراجعة')).join(', ')}
               </p>
               {pass.includeTags && pass.includeTags.length > 0 && (
-                <p className="muted">Tags: {pass.includeTags.join(', ')}</p>
+                <p className="muted">الوسوم: {pass.includeTags.join(', ')}</p>
               )}
-              <p className="muted">Spread over {pass.spreadOverDays ?? 3} day(s)</p>
+              <p className="muted">التوزيع على {pass.spreadOverDays ?? 3} يوم/أيام</p>
               <div className="lecture-buttons">
                 <button className="study-button secondary" onClick={() => scheduleRevisionPass(pass)}>
-                  Schedule now
+                  جدولة الآن
                 </button>
                 <button className="study-button secondary" onClick={() => actions.deleteRevisionPass(pass.id)}>
-                  Delete
+                  حذف
                 </button>
               </div>
             </article>
@@ -244,13 +240,13 @@ export const RevisionPlannerView: React.FC<RevisionPlannerViewProps> = ({ subjec
       </section>
 
       <section className="revision-upcoming">
-        <h3>Upcoming revision tasks</h3>
-        {upcomingRevision.length === 0 && <p className="muted">No revision tasks scheduled.</p>}
+        <h3>مهام المراجعة القادمة</h3>
+        {upcomingRevision.length === 0 && <p className="muted">لا توجد مهام مراجعة حالياً.</p>}
         <div className="revision-upcoming__list">
           {upcomingRevision.map((day) => (
             <div key={day.date} className="revision-upcoming__item">
               <strong>{dayjs(day.date).format('DD MMM')}</strong>
-              <span>{day.items.length} task(s)</span>
+              <span>{day.items.length} مهمة</span>
             </div>
           ))}
         </div>

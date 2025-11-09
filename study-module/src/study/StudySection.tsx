@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import dayjs from 'dayjs';
+import 'dayjs/locale/ar';
 import { StudyProvider } from './state';
 import './study.css';
 import { StudyEvent, StudySectionProps } from './types';
@@ -9,6 +11,7 @@ import { LectureDetailView } from './components/LectureDetailView';
 import { FocusMode } from './components/FocusMode';
 import { RevisionPlannerView } from './components/RevisionPlannerView';
 import { StatsPanel } from './components/StatsPanel';
+import { SettingsView } from './components/SettingsView';
 
 export type SectionView =
   | { type: 'dashboard' }
@@ -16,7 +19,8 @@ export type SectionView =
   | { type: 'lecture'; lectureId: string }
   | { type: 'focus'; lectureId: string }
   | { type: 'revisionPlanner'; subjectId?: string }
-  | { type: 'stats' };
+  | { type: 'stats' }
+  | { type: 'settings' };
 
 const StudySectionShell: React.FC<{ onChangeView: (view: SectionView) => void; currentView: SectionView }> = ({
   onChangeView,
@@ -35,6 +39,8 @@ const StudySectionShell: React.FC<{ onChangeView: (view: SectionView) => void; c
       return <RevisionPlannerView subjectId={currentView.subjectId} onNavigate={onChangeView} />;
     case 'stats':
       return <StatsPanel onNavigate={onChangeView} />;
+    case 'settings':
+      return <SettingsView onNavigate={onChangeView} />;
     default:
       return <DashboardView onNavigate={onChangeView} />;
   }
@@ -55,9 +61,10 @@ export const StudySection: React.FC<StudySectionProps> = ({ onEvent, initialStat
 
   return (
     <StudyProvider initialState={initialState}>
-      <div className="study-section">
+      <div className="study-section" dir="rtl">
         <StudySectionShell currentView={view} onChangeView={setView} />
       </div>
     </StudyProvider>
   );
 };
+dayjs.locale('ar');
