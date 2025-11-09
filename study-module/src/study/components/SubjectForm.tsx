@@ -2,6 +2,27 @@ import { useState } from 'react';
 import dayjs from 'dayjs';
 import { Difficulty } from '../types';
 
+const importanceOptions = [
+  { value: 0.8, label: 'أولوية منخفضة' },
+  { value: 1.0, label: 'أولوية عادية (افتراضي)' },
+  { value: 1.3, label: 'أولوية مرتفعة' },
+];
+
+const normalizeWeight = (raw?: number): number => {
+  const options = importanceOptions.map((option) => option.value);
+  if (raw == null || Number.isNaN(raw)) return 1.0;
+  let best = options[0];
+  let bestDiff = Math.abs(raw - best);
+  for (const value of options) {
+    const diff = Math.abs(raw - value);
+    if (diff < bestDiff) {
+      best = value;
+      bestDiff = diff;
+    }
+  }
+  return best;
+};
+
 export interface SubjectFormValues {
   name: string;
   color: string;
@@ -33,7 +54,7 @@ export const SubjectForm: React.FC<SubjectFormProps> = ({
     examDate: initial?.examDate ?? dayjs().add(30, 'day').format('YYYY-MM-DD'),
     difficulty: initial?.difficulty ?? 'medium',
     reservedRevisionDays: initial?.reservedRevisionDays ?? 3,
-    weight: initial?.weight ?? 1,
+    weight: normalizeWeight(initial?.weight),
     notes: initial?.notes ?? '',
   });
 
@@ -102,14 +123,22 @@ export const SubjectForm: React.FC<SubjectFormProps> = ({
             />
           </label>
           <label>
-            الوزن النسبي
-            <input
-              type="number"
-              min={0.1}
-              step={0.1}
+            أولوية المادة في الخطة
+            <select
               value={form.weight}
-              onChange={(event) => setForm((prev) => ({ ...prev, weight: Number(event.target.value) }))}
-            />
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, weight: Number(event.target.value) }))
+              }
+            >
+              {importanceOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="muted">
+              تستخدم هذه الأولوية لتوزيع المحاضرات بين المواد، بحيث تظهر المواد ذات الأولوية المرتفعة أكثر في الخطة.
+            </p>
           </label>
           <label>
             ملاحظات اختيارية
