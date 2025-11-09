@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import clsx from 'clsx';
 import { SectionView } from '../StudySection';
@@ -7,6 +7,7 @@ import { getSubjectLectures, getSubjectProgress } from '../utils/selectors';
 import { Difficulty, Lecture, LectureStatus, LectureType } from '../types';
 import { SubjectForm } from './SubjectForm';
 import { LectureForm, LectureFormValues } from './LectureForm';
+import { BulkLectureForm } from './BulkLectureForm';
 
 interface SubjectViewProps {
   subjectId: string;
@@ -67,6 +68,12 @@ const difficultyLabel: Record<Difficulty, string> = {
   hard: 'صعب',
 };
 
+const getImportanceLabel = (weight: number): string => {
+  if (weight <= 0.9) return 'أولوية منخفضة';
+  if (weight >= 1.2) return 'أولوية مرتفعة';
+  return 'أولوية عادية';
+};
+
 export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate }) => {
   const state = useStudyState();
   const actions = useStudyActions();
@@ -78,6 +85,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
   const [showSubjectForm, setShowSubjectForm] = useState(false);
   const [lectureToEdit, setLectureToEdit] = useState<Lecture | null>(null);
   const [showLectureForm, setShowLectureForm] = useState(false);
+  const [showBulkForm, setShowBulkForm] = useState(false);
 
   const subject = state.subjects.find((item) => item.id === subjectId);
   const lectures = useMemo(() => getSubjectLectures(state, subjectId), [state, subjectId]);
@@ -113,6 +121,92 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
     progress.remaining > 0 &&
     (effectiveStudyDays <= 0 ||
       requiredPerDay > (state.settings.maxLecturesPerDay ?? Math.max(requiredPerDay, 1)));
+
+  const maxLecturesPerDay = state.settings.maxLecturesPerDay;
+  const maxMinutesPerDay = state.settings.maxMinutesPerDay;
+
+  const lectureMap = useMemo(() => {
+    const map = new Map<string, Lecture>();
+    for (const lecture of state.lectures) {
+      map.set(lecture.id, lecture);
+    }
+    return map;
+  }, [state.lectures]);
+
+  const exceedsMinutesCap = useMemo(() => {
+    if (maxMinutesPerDay == null) {
+      return false;
+    }
+
+    for (const day of state.studyDays) {
+      const subjectTargets = day.targetLectures.filter(
+        (item) => item.subjectId === subjectId && !item.isRevision,
+      );
+      if (!subjectTargets.length) continue;
+
+      let totalMinutes = 0;
+      for (const planned of subjectTargets) {
+        const lecture = lectureMap.get(planned.lectureId);
+        totalMinutes += lecture?.estimatedMinutes ?? 30;
+      }
+
+      if (totalMinutes > maxMinutesPerDay) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [lectureMap, maxMinutesPerDay, state.studyDays, subjectId]);
+
+  useEffect(() => {
+    const noTimeWarning =
+      'لا يوجد وقت كافٍ قبل بدء أيام المراجعة. قلل عدد الدروس أو عدّل أيام المراجعة أو تاريخ الامتحان.';
+    const requiredPerDayValue = requiredPerDay.toFixed(1);
+    const lecturesCapWarning =
+      maxLecturesPerDay != null
+        ? `الخطة الحالية تحتاج إلى ${requiredPerDayValue} درس في اليوم، وهذا أعلى من الحد الأقصى للمحاضرات اليومية في الإعدادات (${maxLecturesPerDay} درس).`
+        : null;
+    const minutesCapWarning =
+      'مجموع الدقائق اليومية المطلوبة لهذه المادة يتجاوز الحد الأقصى المحدد في الإعدادات. جرّب تقليل الوقت التقديري لكل درس أو تعديل الحد الأقصى للدقائق.';
+    const genericWarning =
+      'الخطة الحالية قريبة من الحد الأقصى للحمل اليومي، راقب الضغط وعدّل التوزيع أو الإعدادات إذا لزم الأمر.';
+
+    const autoMessages = [noTimeWarning, lecturesCapWarning, minutesCapWarning, genericWarning].filter(
+      (message): message is string => Boolean(message),
+    );
+
+    if (!overloaded) {
+      if (plannerWarning && autoMessages.includes(plannerWarning)) {
+        setPlannerWarning(null);
+      }
+      return;
+    }
+
+    if (effectiveStudyDays <= 0 && progress.remaining > 0) {
+      setPlannerWarning(noTimeWarning);
+      return;
+    }
+
+    if (lecturesCapWarning && maxLecturesPerDay != null && requiredPerDay > maxLecturesPerDay) {
+      setPlannerWarning(lecturesCapWarning);
+      return;
+    }
+
+    if (exceedsMinutesCap) {
+      setPlannerWarning(minutesCapWarning);
+      return;
+    }
+
+    setPlannerWarning(genericWarning);
+  }, [
+    overloaded,
+    effectiveStudyDays,
+    progress.remaining,
+    requiredPerDay,
+    maxLecturesPerDay,
+    exceedsMinutesCap,
+    plannerWarning,
+  ]);
 
   const handlePlanner = () => {
     const result = actions.generatePlanForSubject(subjectId);
@@ -184,7 +278,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
         </div>
         <div className="subject-header__meta">
           <span className="badge">الصعوبة: {difficultyLabel[subject.difficulty]}</span>
-          <span className="badge">الوزن: {subject.weight}</span>
+          <span className="badge">أولوية المادة: {getImportanceLabel(subject.weight)}</span>
           <span className="badge">أيام المراجعة: {subject.reservedRevisionDays}</span>
           <button className="study-button secondary" onClick={() => setShowSubjectForm(true)}>
             تعديل المادة
@@ -273,6 +367,15 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
           </select>
           <button className="study-button" onClick={() => { setLectureToEdit(null); setShowLectureForm(true); }}>
             إضافة درس
+          </button>
+          <button
+            className="study-button secondary"
+            onClick={() => {
+              setShowLectureForm(false);
+              setShowBulkForm(true);
+            }}
+          >
+            إضافة مجموعة دروس
           </button>
         </div>
       </section>
@@ -385,6 +488,14 @@ export const SubjectView: React.FC<SubjectViewProps> = ({ subjectId, onNavigate 
             setLectureToEdit(null);
           }}
           onSubmit={lectureToEdit ? handleUpdateLecture : handleAddLecture}
+        />
+      )}
+
+      {showBulkForm && (
+        <BulkLectureForm
+          subjectId={subjectId}
+          onCancel={() => setShowBulkForm(false)}
+          onDone={() => setShowBulkForm(false)}
         />
       )}
     </div>
